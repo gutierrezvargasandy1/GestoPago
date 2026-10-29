@@ -1,0 +1,7 @@
+# Clientes y cuentas de ejemplo (ana, bruno, carla; contrasena Demo-2026!).
+# Funciona con cualquier proveedor: con el simulador (perfil "demo") o contra
+# PuntoRed real (activar solo "datos-demo"). La carpeta db/demo solo se carga
+# con este perfil: los usuarios de prueba nunca llegan a produccion.
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/demo

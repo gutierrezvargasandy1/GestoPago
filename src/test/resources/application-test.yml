@@ -1,0 +1,50 @@
+# Configuracion exclusiva de pruebas. Los valores de aqui no son secretos: solo
+# sirven contra la base de pruebas y el simulador WireMock. Se fijan todos los
+# que tambien podrian venir del .env del desarrollador, para que las pruebas
+# nunca usen credenciales reales.
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+
+gestopago:
+  url-base: http://localhost:1
+  token: token-de-pruebas
+  api-key: clave-api-de-pruebas
+  cifrado:
+    llave: F+ZRjJ3B8HMoG8EjpbBOG3smlOGFa8povHGWXQKrMqs=
+    iv: vHvwOdGeLqxpK9u3tyShrA==
+  endpoints:
+    consulta: /sistema/service/confirmTx.do
+  timeout:
+    # conexion menor que lectura: un fallo de conexion se detecta como tal
+    conexion: 500ms
+    lectura: 1s
+  codigos:
+    consulta-no-aplicada: ["04"]
+
+pagos:
+  base-de-datos:
+    esquema: public
+  conciliacion:
+    habilitada: false
+    margen-inicial: PT5S
+    espera-base: PT1M
+    max-intentos: 3
+    confirmaciones-no-encontrada: 2
+  catalogo:
+    # Las pruebas usan el catalogo de ejemplo y sincronizan solo cuando lo piden.
+    permitir-ejemplo: true
+    sincronizacion-habilitada: false
+
+seguridad:
+  jwt:
+    secreto: secreto-solo-para-pruebas-automatizadas-0123456789
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      gestopago:
+        # En integracion no queremos que el circuito se abra por acumulacion entre
+        # pruebas; el comportamiento del circuito se prueba de forma unitaria.
+        minimum-number-of-calls: 1000

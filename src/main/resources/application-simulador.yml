@@ -1,0 +1,42 @@
+# Simulador local de PuntoRed (docker compose up -d simulador). Implementa el
+# contrato real: autenticacion, cifrado AES del campo "signed", respuestas XML,
+# confirmTx y getProductList. Decide por los ultimos 4 digitos de la referencia:
+#   ...0000 -> saldo insuficiente (02): se devuelve el dinero
+#   ...0006 -> duplicada (06): se devuelve el dinero (409)
+#   ...8282 -> el carrier no respondio (82): EN_CONCILIACION -> confirmTx "no aplicada" -> reverso
+#   ...9999 -> responde despues del timeout: EN_CONCILIACION -> confirmTx "aplicada" -> CONFIRMADA
+#   ...5000 -> HTTP 500: EN_CONCILIACION -> confirmTx "no aplicada" -> reverso
+#   otra    -> aprobada (01)
+#
+# Los valores de abajo son de DEMOSTRACION, no secretos: el simulador los conoce
+# y no sirven contra el proveedor real. Se fijan aqui para que el perfil use
+# siempre el simulador aunque el .env tenga credenciales reales.
+gestopago:
+  url-base: http://localhost:8089
+  token: ""
+  api-key: clave-api-simulador
+  autenticacion:
+    id-distribuidor: DEMO
+    codigo-dispositivo: DEMO-01
+    password: demo-simulador
+  cifrado:
+    llave: vETiw7gnv7yO8Nh/R7HkzV7RKas/2mWixcXstqFFcrU=
+    iv: iw7ERHzR2c2YAPIhy6zs7g==
+  endpoints:
+    consulta: /sistema/service/confirmTx.do
+  timeout:
+    conexion: 2s
+    lectura: 5s
+  codigos:
+    # Codigo con el que el simulador responde "no aplicada" en confirmTx.
+    consulta-no-aplicada: ["04"]
+
+pagos:
+  conciliacion:
+    intervalo: PT20S
+    margen-inicial: PT15S
+    espera-base: PT15S
+  catalogo:
+    # Con el simulador se usa el catalogo de ejemplo (TAE_TELCEL, CFE...).
+    permitir-ejemplo: true
+    sincronizacion-habilitada: false

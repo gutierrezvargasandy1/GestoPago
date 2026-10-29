@@ -1,0 +1,993 @@
+{
+  "info": {
+    "name": "Pagos de servicios - PuntoRed (GestoPago)",
+    "description": "Dos carpetas: 'Simulador' (perfil demo: docker compose up -d y la API con --spring.profiles.active=demo) y 'Proveedor real' (perfil datos-demo con las credenciales de PuntoRed en el .env). En cada carpeta ejecuta primero el login.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "clave",
+      "value": ""
+    },
+    {
+      "key": "ultimoId",
+      "value": ""
+    },
+    {
+      "key": "idServicioReal",
+      "value": ""
+    },
+    {
+      "key": "idProductoReal",
+      "value": ""
+    },
+    {
+      "key": "montoReal",
+      "value": ""
+    },
+    {
+      "key": "telefonoPrueba",
+      "value": "5512345678"
+    }
+  ],
+  "item": [
+    {
+      "name": "Simulador (perfil demo)",
+      "item": [
+        {
+          "name": "01. Login (ana / Demo-2026!)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario\": \"ana\",\n  \"password\": \"Demo-2026!\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 y token', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02. Catálogo de Telcel",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/servicios/TAE_TELCEL/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "servicios",
+                "TAE_TELCEL",
+                "productos"
+              ]
+            }
+          }
+        },
+        {
+          "name": "03. Pago aprobado (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_100\",\n  \"referencia\": \"5512345678\",\n  \"monto\": 100.0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cuerpo = pm.response.json();",
+                  "if (cuerpo.transaccionId) { pm.collectionVariables.set('ultimoId', cuerpo.transaccionId); }",
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04. Repetir el pago anterior con la MISMA clave (200, no cobra)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_100\",\n  \"referencia\": \"5512345678\",\n  \"monto\": 100.0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 repetido', () => pm.response.to.have.status(200));",
+                  "pm.test('Idempotent-Replayed', () => pm.response.to.have.header('Idempotent-Replayed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05. Misma clave con OTRO monto (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_200\",\n  \"referencia\": \"5512345678\",\n  \"monto\": 200.0\n}"
+            }
+          }
+        },
+        {
+          "name": "06. Saldo insuficiente del distribuidor: ...0000 (422, se devuelve el dinero)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_100\",\n  \"referencia\": \"5512340000\",\n  \"monto\": 100.0\n}"
+            },
+            "description": "El simulador responde el codigo 02 de PuntoRed (saldo insuficiente del distribuidor). La operacion no se aplico: el monto se devuelve a la cuenta."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cuerpo = pm.response.json();",
+                  "if (cuerpo.transaccionId) { pm.collectionVariables.set('ultimoId', cuerpo.transaccionId); }",
+                  "pm.test('422 PAGO_RECHAZADO', () => pm.expect(cuerpo.codigo).to.eql('PAGO_RECHAZADO'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06b. Duplicada en el proveedor: ...0006 (409, se devuelve el dinero)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_100\",\n  \"referencia\": \"5512340006\",\n  \"monto\": 100.0\n}"
+            },
+            "description": "El simulador responde 06: el proveedor ya aplico un pago igual hace poco y no aplica este."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cuerpo = pm.response.json();",
+                  "if (cuerpo.transaccionId) { pm.collectionVariables.set('ultimoId', cuerpo.transaccionId); }",
+                  "pm.test('409 PAGO_DUPLICADO', () => pm.expect(cuerpo.codigo).to.eql('PAGO_DUPLICADO'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07. Timeout del proveedor: referencia ...9999 (202, queda en conciliación)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_100\",\n  \"referencia\": \"5512349999\",\n  \"monto\": 100.0\n}"
+            },
+            "description": "El simulador tarda 8 s y la API espera 5 s. El dinero queda retenido; unos 20-40 s despues la conciliacion pregunta con confirmTx (mismo UPC y hora) y la confirma. Usa la peticion 08 para ver el cambio de estado."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cuerpo = pm.response.json();",
+                  "if (cuerpo.transaccionId) { pm.collectionVariables.set('ultimoId', cuerpo.transaccionId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08. Consultar el último pago",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos/{{ultimoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos",
+                "{{ultimoId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "09. Error 500 del proveedor: referencia ...5000 (202)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_100\",\n  \"referencia\": \"5512345000\",\n  \"monto\": 100.0\n}"
+            },
+            "description": "HTTP 500: el resultado es indeterminado y el dinero queda retenido. confirmTx responde 'no aplicada'; tras dos respuestas iguales la conciliacion devuelve el monto."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cuerpo = pm.response.json();",
+                  "if (cuerpo.transaccionId) { pm.collectionVariables.set('ultimoId', cuerpo.transaccionId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09b. Sin respuesta del carrier: ...8282 (202, confirmTx decide)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_100\",\n  \"referencia\": \"5512348282\",\n  \"monto\": 100.0\n}"
+            },
+            "description": "Codigo 82: el carrier no respondio a PuntoRed en 62 s. No prueba que no se aplico: queda EN_CONCILIACION y confirmTx decide."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cuerpo = pm.response.json();",
+                  "if (cuerpo.transaccionId) { pm.collectionVariables.set('ultimoId', cuerpo.transaccionId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09c. Tarjeta de regalo: ...7777 (201 con PIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_100\",\n  \"referencia\": \"5512347777\",\n  \"monto\": 100.0\n}"
+            },
+            "description": "El proveedor devuelve un PIN y una leyenda de canje: la API los entrega al dueno del pago."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cuerpo = pm.response.json();",
+                  "if (cuerpo.transaccionId) { pm.collectionVariables.set('ultimoId', cuerpo.transaccionId); }",
+                  "pm.test('201 con PIN', () => { pm.response.to.have.status(201); pm.expect(cuerpo.pin).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10. Monto manipulado en producto de monto fijo (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_100\",\n  \"referencia\": \"5512345678\",\n  \"monto\": 1.0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11. Saldo insuficiente (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"CFE\",\n  \"idProducto\": \"CFE_PAGO\",\n  \"referencia\": \"123456789012\",\n  \"monto\": 2000.0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12. Cuenta bloqueada (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000002\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_100\",\n  \"referencia\": \"5512345678\",\n  \"monto\": 100.0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13. Campo no permitido: intento de fijar la comisión (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"CFE\",\n  \"idProducto\": \"CFE_PAGO\",\n  \"referencia\": \"123456789012\",\n  \"monto\": 100.0,\n  \"comision\": 0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14. Sin token (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"TAE_TELCEL\",\n  \"idProducto\": \"TEL_100\",\n  \"referencia\": \"5512345678\",\n  \"monto\": 100.0\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Proveedor real (perfil datos-demo)",
+      "item": [
+        {
+          "name": "01. Login (ana / Demo-2026!)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario\": \"ana\",\n  \"password\": \"Demo-2026!\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 y token', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R1. Servicios del catálogo de PuntoRed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/servicios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "servicios"
+              ]
+            },
+            "description": "Catalogo sincronizado con getProductList al arrancar. Guarda el primer servicio en la variable idServicioReal (cambiala si quieres otro)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const servicios = pm.response.json();",
+                  "pm.test('hay servicios sincronizados', () => pm.expect(servicios.length).to.be.above(0));",
+                  "if (servicios.length) { pm.collectionVariables.set('idServicioReal', servicios[0].idServicio); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R2. Productos del servicio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalogo/servicios/{{idServicioReal}}/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalogo",
+                "servicios",
+                "{{idServicioReal}}",
+                "productos"
+              ]
+            },
+            "description": "Guarda el primer producto de monto fijo en las variables idProductoReal y montoReal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const productos = pm.response.json();",
+                  "const fijo = productos.find(p => p.tipoMonto === 'FIJO') || productos[0];",
+                  "if (fijo) {",
+                  "  pm.collectionVariables.set('idProductoReal', fijo.idProducto);",
+                  "  pm.collectionVariables.set('montoReal', fijo.montoFijo || fijo.montoMinimo);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R3. Pagar un producto real",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{clave}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"numeroCuenta\": \"1000000001\",\n  \"idServicio\": \"{{idServicioReal}}\",\n  \"idProducto\": \"{{idProductoReal}}\",\n  \"referencia\": \"{{telefonoPrueba}}\",\n  \"monto\": {{montoReal}}\n}"
+            },
+            "description": "Usa el telefono o la referencia de prueba que indique PuntoRed (variable telefonoPrueba)."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('clave', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cuerpo = pm.response.json();",
+                  "if (cuerpo.transaccionId) { pm.collectionVariables.set('ultimoId', cuerpo.transaccionId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08. Consultar el último pago",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pagos/{{ultimoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pagos",
+                "{{ultimoId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

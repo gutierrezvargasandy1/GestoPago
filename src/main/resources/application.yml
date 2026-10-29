@@ -1,0 +1,200 @@
+spring:
+  application:
+    name: pagos-servicios
+  config:
+    # Variables locales en .env (excluido de git). En un servidor real llegan como
+    # variables de entorno o desde un gestor de secretos; este import es opcional.
+    import: optional:file:.env[.properties]
+  profiles:
+    # "demo" = clientes de ejemplo + simulador local de PuntoRed. Para usar los
+    # clientes de ejemplo contra el proveedor real, activar solo "datos-demo".
+    group:
+      demo:
+        - datos-demo
+        - simulador
+
+  datasource:
+    # Sin valores por defecto a proposito: si faltan, la aplicacion no arranca.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      # En Supabase el pooler en modo sesion admite pocas conexiones por proyecto.
+      maximum-pool-size: ${DB_POOL_MAXIMO:10}
+      connection-timeout: 5000
+      # lock_timeout: una transaccion que espera el candado de una cuenta mas de 3 s
+      # falla rapido (PostgreSQL lanza 55P03) en vez de acumular hilos bloqueados.
+      # search_path: las tablas viven en el esquema configurado (en Supabase, uno
+      # propio para que no queden expuestas por su API REST).
+      connection-init-sql: "SET lock_timeout TO '3s'; SET search_path TO ${pagos.base-de-datos.esquema}"
+
+  jpa:
+    hibernate:
+      # Flyway es la unica fuente del esquema; Hibernate no genera ni altera tablas.
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    locations: classpath:db/migration
+    # Flyway crea el esquema si no existe y guarda ahi su historial.
+    schemas: ${pagos.base-de-datos.esquema}
+    # Los scripts repetibles de datos de ejemplo solo se cargan con el perfil
+    # datos-demo; sin el, Flyway no debe fallar porque "faltan".
+    ignore-migration-patterns: "*:future,repeatable:missing"
+
+  jackson:
+    deserialization:
+      # Un campo que la API no espera (p. ej. "comision") se rechaza con 400.
+      fail-on-unknown-properties: true
+
+  web:
+    error:
+      # Nunca exponer trazas ni mensajes internos en la respuesta HTTP.
+      include-stacktrace: never
+      include-message: never
+      include-binding-errors: never
+      include-exception: false
+
+# ---------------------------------------------------------------------------
+# PuntoRed (GestoPago). Ningun secreto se escribe aqui: solo se referencian
+# variables de entorno. Credencial: las de distribuidor (la API obtiene y
+# renueva el token sola) o, en su lugar, un token fijo en GESTOPAGO_TOKEN.
+# ---------------------------------------------------------------------------
+gestopago:
+  url-base: ${GESTOPAGO_URL:https://gestopago.portalventas.net}
+  token: ${GESTOPAGO_TOKEN:}
+  # Opcional: se envia en el encabezado X-API-Key si el proveedor la asigno.
+  api-key: ${GESTOPAGO_API_KEY:}
+  autenticacion:
+    id-distribuidor: ${GESTOPAGO_ID_DISTRIBUIDOR:}
+    codigo-dispositivo: ${GESTOPAGO_CODIGO_DISPOSITIVO:}
+    password: ${GESTOPAGO_PASSWORD:}
+    # El token dura 24 h y el proveedor pide tomar uno por dia; se renueva antes.
+    vigencia-token: PT23H
+    # true = credenciales en la URL, como el ejemplo de la documentacion.
+    credenciales-en-url: ${GESTOPAGO_CREDENCIALES_EN_URL:false}
+  cifrado:
+    # Llave AES-256 e IV (base64) con los que se cifra el campo "signed".
+    llave: ${GESTOPAGO_AES_KEY:}
+    iv: ${GESTOPAGO_AES_IV:}
+  # Campo "unidad" de sendTx (3 a 25 caracteres).
+  unidad: ${GESTOPAGO_UNIDAD:API-PAGOS}
+  # horaLocal de cada operacion (yyyyMMddHHmmss) se expresa en esta zona.
+  zona-horaria: ${pagos.zona-horaria}
+  endpoints:
+    envio: /sistema/service/sendTx.do
+    autenticacion: /sistema/app/jwt-gp/authenticate/
+    catalogo: /sistema/service/getProductList.do
+    # Ruta de confirmTx. Vacia = las operaciones dudosas pasan a revision manual
+    # en lugar de consultarse. No puede ser la misma de envio (se valida).
+    consulta: ${GESTOPAGO_ENDPOINT_CONSULTA:}
+  timeout:
+    conexion: 5s
+    # PuntoRed espera hasta 62 s la respuesta del carrier antes de contestar 82:
+    # cortar antes convertiria en "dudosa" una operacion que si tendra respuesta.
+    lectura: 70s
+  codigos:
+    # sendTx. Un codigo que no este en estas listas es RESULTADO INDETERMINADO
+    # (se concilia, no se reversa).
+    aprobada: ["01"]
+    rechazada: ["02"]
+    duplicada: ["06"]
+    sin-respuesta: ["82"]
+    # confirmTx. consulta-no-aplicada queda vacia hasta conocer el codigo real
+    # con el que el proveedor responde "no aplicada": mientras tanto esas
+    # operaciones terminan en revision manual en lugar de reversarse a ciegas.
+    consulta-aplicada: ["01"]
+    consulta-no-aplicada: ${GESTOPAGO_CODIGOS_NO_APLICADA:}
+  catalogo:
+    tipos-front-pago-servicio: []
+
+pagos:
+  registro:
+    # Cuenta que se crea al registrarse. Saldo 0: el dinero no se regala al registrarse.
+    saldo-inicial: ${REGISTRO_SALDO_INICIAL:0.00}
+    limite-diario: 5000.00
+  zona-horaria: America/Mexico_City
+  base-de-datos:
+    esquema: ${DB_ESQUEMA:public}
+  conciliacion:
+    habilitada: true
+    intervalo: PT1M
+    tamano-lote: 50
+    # Espera minima antes de consultar una operacion dudosa. Debe ser mayor que
+    # timeout.conexion + timeout.lectura (se valida al arrancar).
+    margen-inicial: PT2M
+    espera-base: PT1M
+    espera-maxima: PT1H
+    max-intentos: 8
+    # Veces que el proveedor debe responder "no aplicada" antes de reversar.
+    confirmaciones-no-encontrada: 2
+    # Tiempo que una transaccion queda reservada para un proceso de conciliacion.
+    arrendamiento: PT5M
+    # confirmTx solo responde durante 24 h despues del envio; se deja margen.
+    vigencia-consulta: PT23H
+  catalogo:
+    # El catalogo de ejemplo usa identificadores que el proveedor real no conoce.
+    permitir-ejemplo: false
+    sincronizacion-habilitada: true
+    # Una vez al dia (el proveedor pide consultarlo diario y maximo 3 veces).
+    cron: "0 10 3 * * *"
+    frecuencia-minima: PT23H
+    max-llamadas-por-dia: 3
+    # Rango para productos sin precio (el cliente captura el monto del recibo).
+    monto-minimo-servicios: 1.00
+    monto-maximo-servicios: 10000.00
+# Swagger UI en /swagger-ui.html y el contrato en /v3/api-docs. Apagado por
+# defecto: en produccion no se publica el mapa de la API.
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_HABILITADO:false}
+  swagger-ui:
+    enabled: ${SWAGGER_HABILITADO:false}
+    path: /swagger-ui.html
+
+seguridad:
+  jwt:
+    secreto: ${JWT_SECRETO}
+    emisor: pagos-servicios
+    vigencia: PT15M
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      gestopago:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        # Una respuesta legitima puede tardar hasta 62 s (el 82 del proveedor).
+        slow-call-duration-threshold: 30s
+        slow-call-rate-threshold: 80
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  health:
+    circuitbreakers:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.utng.pagosservicios: INFO
+    # En DEBUG el cliente HTTP puede registrar encabezados (incluido Authorization).
+    org.springframework.web.client: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"

@@ -1,0 +1,36 @@
+# Entorno local.
+#   docker compose up -d              PostgreSQL local + simulador de PuntoRed
+#   docker compose up -d simulador    solo el simulador (si la base es Supabase)
+# Las variables se toman del archivo .env (ver .env.example).
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: pagos-postgres
+    environment:
+      POSTGRES_DB: pagos_servicios
+      POSTGRES_USER: ${DB_USERNAME:-pagos}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pagos-datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Simulador de PuntoRed escrito solo con el JDK: implementa autenticacion,
+  # cifrado AES del campo "signed", respuestas XML, confirmTx y getProductList.
+  # Sus valores por defecto coinciden con el perfil "simulador" de la API.
+  simulador:
+    image: eclipse-temurin:21-jdk-alpine
+    container_name: puntored-simulador
+    command: ["java", "/simulador/SimuladorPuntoRed.java"]
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./simulador:/simulador:ro
+
+volumes:
+  pagos-datos:

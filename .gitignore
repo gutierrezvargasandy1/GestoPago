@@ -1,0 +1,39 @@
+### Credenciales y configuracion local ###
+# Lo mas importante de este archivo: el token de Gestopago no debe llegar nunca
+# al repositorio. Un commit con el token adentro no se arregla borrandolo
+# despues, queda en el historial de git.
+.env
+*.env
+!.env.example
+application-local.yml
+application-local.properties
+application-secrets.yml
+
+### Maven ###
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+### IDE ###
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+nbproject/
+.nb-gradle/
+
+### Sistema operativo ###
+.DS_Store
+Thumbs.db
+
+### Logs ###
+*.log
+logs/
