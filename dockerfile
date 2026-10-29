@@ -1,32 +1,33 @@
-# --- etapa 1: compilacion ---
-from maven:3.9.9-eclipse-temurin-21-alpine as builder
-workdir /app
+# --- Etapa 1: Compilación ---
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
+WORKDIR /app
 
-# copiar pom.xml y descargar dependencias para aprovechar la caché
-copy pom.xml .
-run mvn dependency:go-offline -b
+# Copiar archivos de configuración de dependencias primero para aprovechar la caché
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
-# copiar el codigo fuente y compilar
-copy src ./src
-run mvn clean package -DskipTests
+# Copiar el código fuente y compilar omitiendo tests
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-# --- etapa 2: ejecucion ---
-from eclipse-temurin:21-jre-alpine
-workdir /app
+# --- Etapa 2: Ejecución ---
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
 
-# usuario sin privilegios por seguridad
-run addgroup -S appgroup && adduser -S -G appgroup appuser
+# Crear un usuario sin privilegios por seguridad
+RUN addgroup -S appgroup && adduser -S -G appgroup appuser
 
-# copiar el JAR generado
-copy --from=builder /app/target/*.jar app.jar
+# Copiar el JAR generado apuntando directamente al directorio target
+COPY --from=builder /app/target/*.jar app.jar
 
-run chown -R appuser:appgroup /app
-user appuser
+# Cambiar permisos del directorio de la aplicación al usuario creado
+RUN chown -R appuser:appgroup /app
+USER appuser
 
-# exponer puerto predeterminado
-expose 8080
+# Render asigna dinámicamente el puerto mediante la variable PORT
+EXPOSE 8080
 
-# opciones de memoria para contenedores java
-env JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+# Configuraciones recomendadas para contenedores Java
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 
-entrypoint ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
