@@ -29,6 +29,7 @@ public class ValidadorPago {
     public Producto validar(SolicitudPago solicitud) {
         Producto producto = productos.buscarEnCatalogo(solicitud.idServicio(), solicitud.idProducto())
                 .filter(Producto::disponible)
+                .filter(Producto::vendibleEnLinea)
                 // El catalogo de ejemplo usa identificadores que el proveedor real no conoce.
                 .filter(candidato -> permitirEjemplo || !candidato.esDeEjemplo())
                 .orElseThrow(() -> new ReglaNegocioException(CodigoError.PRODUCTO_NO_DISPONIBLE,

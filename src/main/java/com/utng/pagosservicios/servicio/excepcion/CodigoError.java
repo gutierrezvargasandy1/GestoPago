@@ -11,6 +11,9 @@ public enum CodigoError {
     CLAVE_IDEMPOTENCIA_INVALIDA("Clave de idempotencia inválida"),
     NO_AUTENTICADO("No autenticado"),
     CREDENCIALES_INVALIDAS("Credenciales inválidas"),
+    CODIGO_2FA_INVALIDO("Código de verificación inválido"),
+    DESAFIO_INVALIDO("Verificación vencida"),
+    SESION_FINALIZADA("Sesión finalizada"),
     ACCESO_DENEGADO("Acceso denegado"),
     CLIENTE_NO_HABILITADO("Cliente no habilitado"),
     CUENTA_NO_AUTORIZADA("Cuenta no autorizada"),
@@ -19,6 +22,8 @@ public enum CodigoError {
     METODO_NO_PERMITIDO("Método no permitido"),
     TIPO_CONTENIDO_NO_SOPORTADO("Tipo de contenido no soportado"),
     CLAVE_IDEMPOTENCIA_REUTILIZADA("Clave de idempotencia reutilizada"),
+    USUARIO_YA_REGISTRADO("Usuario ya registrado"),
+    SESION_ACTIVA("Sesión activa en otra plataforma"),
     PAGO_EN_PROCESO("Pago en proceso"),
     OPERACION_CONCURRENTE("Operación concurrente"),
     CUENTA_INACTIVA("Cuenta inactiva"),
@@ -30,7 +35,6 @@ public enum CodigoError {
     PAGO_RECHAZADO("Pago rechazado por el proveedor"),
     PAGO_DUPLICADO("Pago duplicado en el proveedor"),
     PROVEEDOR_NO_DISPONIBLE("Proveedor no disponible"),
-        USUARIO_YA_REGISTRADO("Usuario ya registrado"),
     ERROR_INTERNO("Error interno");
 
     private final String titulo;

@@ -13,6 +13,10 @@ import java.util.Optional;
 
 public interface CuentaRepository extends JpaRepository<Cuenta, Long> {
 
+    boolean existsByNumero(String numero);
+
+    java.util.List<Cuenta> findByClienteIdOrderByIdAsc(Long clienteId);
+
     /**
      * Carga la cuenta con un bloqueo exclusivo (SELECT ... FOR UPDATE) y solo si
      * pertenece al cliente indicado.
@@ -24,9 +28,6 @@ public interface CuentaRepository extends JpaRepository<Cuenta, Long> {
      * <p>Filtrar por cliente en la misma consulta evita que alguien bloquee
      * cuentas ajenas solo con conocer su numero.
      */
-
-        boolean existsByNumero(String numero);
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000"))
     @Query("SELECT c FROM Cuenta c WHERE c.numero = :numero AND c.clienteId = :clienteId")

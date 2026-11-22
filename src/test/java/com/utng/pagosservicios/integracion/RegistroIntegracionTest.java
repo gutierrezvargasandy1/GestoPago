@@ -35,7 +35,8 @@ class RegistroIntegracionTest extends IntegracionBase {
         mvc.perform(post("/api/v1/auth/token").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"usuario\":\"luis.perez\",\"password\":\"Secreta123\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+                .andExpect(jsonPath("$.desafio").isNotEmpty())
+                .andExpect(jsonPath("$.requiereConfiguracion").value(true));
     }
 
     @Test

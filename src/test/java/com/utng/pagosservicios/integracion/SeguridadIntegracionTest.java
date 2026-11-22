@@ -2,6 +2,7 @@ package com.utng.pagosservicios.integracion;
 
 import com.jayway.jsonpath.JsonPath;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.utng.pagosservicios.seguridad.Totp;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -93,7 +94,7 @@ class SeguridadIntegracionTest extends IntegracionBase {
 
     @Test
     void tokenSinPermisoDePagos_403() throws Exception {
-        String sinScope = emisorTokens.emitir("ana", false).valor();
+        String sinScope = tokenDe("ana", false);
 
         pagar(sinScope, "seg-sin-scope-1", telcel100())
                 .andExpect(status().isForbidden())
@@ -107,10 +108,17 @@ class SeguridadIntegracionTest extends IntegracionBase {
                         .content("{\"usuario\":\"ana\",\"password\":\"" + DatosPrueba.PASSWORD + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("no-store")))
-                .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.expiraEnSegundos").value(900))
+                .andExpect(jsonPath("$.requiereConfiguracion").value(true))
                 .andReturn();
-        String token = JsonPath.read(resultado.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.accessToken");
+        String cuerpo = resultado.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String codigo = Totp.codigo(JsonPath.read(cuerpo, "$.secreto"), Instant.now());
+        String token = JsonPath.read(mvc.perform(post("/api/v1/auth/2fa")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"desafio\":\"" + JsonPath.read(cuerpo, "$.desafio") + "\",\"codigo\":\"" + codigo
+                                + "\",\"plataforma\":\"WEB\",\"forzar\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8), "$.accessToken");
 
         mvc.perform(get("/api/v1/catalogo/servicios/TAE_TELCEL/productos")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))

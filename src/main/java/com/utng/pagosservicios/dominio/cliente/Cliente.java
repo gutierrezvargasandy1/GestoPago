@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import java.time.Duration;
 import java.time.Instant;
 
 @Entity
@@ -36,6 +37,22 @@ public class Cliente {
     @Column(name = "creado_en", nullable = false, updatable = false)
     private Instant creadoEn;
 
+    /** Secreto del segundo factor en Base32. Nunca sale en respuestas despues de activarse. */
+    @Column(name = "totp_secreto", length = 64)
+    private String totpSecreto;
+
+    @Column(name = "totp_activo", nullable = false)
+    private boolean totpActivo;
+
+    @Column(name = "totp_ultimo_paso")
+    private Long totpUltimoPaso;
+
+    @Column(name = "totp_intentos", nullable = false)
+    private int totpIntentos;
+
+    @Column(name = "totp_bloqueado_hasta")
+    private Instant totpBloqueadoHasta;
+
     protected Cliente() {
         // requerido por JPA
     }
@@ -52,6 +69,33 @@ public class Cliente {
     /** Un cliente puede pagar solo si esta activo y tiene habilitada la operacion. */
     public boolean puedePagar() {
         return activo && pagosHabilitados;
+    }
+
+    /** El secreto se genera una vez; mientras no se active, se puede volver a mostrar. */
+    public void asignarSecretoTotp(String secreto) {
+        if (totpSecreto == null) {
+            totpSecreto = secreto;
+        }
+    }
+
+    public boolean bloqueadoPorIntentos(Instant ahora) {
+        return totpBloqueadoHasta != null && ahora.isBefore(totpBloqueadoHasta);
+    }
+
+    /** Tras demasiados codigos incorrectos el segundo factor se bloquea un tiempo (fuerza bruta). */
+    public void registrarFalloTotp(Instant ahora, int maximoIntentos, Duration bloqueo) {
+        totpIntentos++;
+        if (totpIntentos >= maximoIntentos) {
+            totpBloqueadoHasta = ahora.plus(bloqueo);
+            totpIntentos = 0;
+        }
+    }
+
+    public void registrarExitoTotp(long paso) {
+        totpActivo = true;
+        totpUltimoPaso = paso;
+        totpIntentos = 0;
+        totpBloqueadoHasta = null;
     }
 
     public Long getId() {
@@ -80,5 +124,17 @@ public class Cliente {
 
     public Instant getCreadoEn() {
         return creadoEn;
+    }
+
+    public String getTotpSecreto() {
+        return totpSecreto;
+    }
+
+    public boolean isTotpActivo() {
+        return totpActivo;
+    }
+
+    public Long getTotpUltimoPaso() {
+        return totpUltimoPaso;
     }
 }

@@ -190,6 +190,21 @@ public class Producto {
                 && idProductoProveedor != null && servicio.getIdServicioProveedor() != null;
     }
 
+    /**
+     * Si se puede comprar en linea hoy. Del catalogo de GestoPago solo las
+     * recargas de tiempo aire: los pagos de servicio (tipoFront 2) y las
+     * tarjetas canjeables (tipos 10, 11 y 19) usan otro formato de sendTx que
+     * esta integracion todavia no implementa. El catalogo de ejemplo no aplica.
+     */
+    public boolean vendibleEnLinea() {
+        if (origen != OrigenCatalogo.PROVEEDOR) {
+            return true;
+        }
+        String categoria = servicio.getCategoria();
+        return modalidad == Modalidad.RECARGA
+                && !("TIPO_10".equals(categoria) || "TIPO_11".equals(categoria) || "TIPO_19".equals(categoria));
+    }
+
     public boolean esDeEjemplo() {
         return origen == OrigenCatalogo.SEMILLA;
     }

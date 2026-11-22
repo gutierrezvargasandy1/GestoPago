@@ -24,6 +24,10 @@ public interface TransaccionPagoRepository extends JpaRepository<TransaccionPago
 
     Optional<TransaccionPago> findByIdAndClienteId(Long id, Long clienteId);
 
+    /** Historial: las compras confirmadas del cliente, la mas reciente primero. */
+    List<TransaccionPago> findTop100ByClienteIdAndEstadoOrderByResueltoEnDesc(Long clienteId,
+                                                                              EstadoTransaccion estado);
+
     /**
      * Monto comprometido hoy por la cuenta: todo lo que no termino reversado
      * (confirmado o aun pendiente). Devuelve null si no hay operaciones.

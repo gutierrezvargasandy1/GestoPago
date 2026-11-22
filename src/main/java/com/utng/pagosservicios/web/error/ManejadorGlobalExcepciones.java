@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.dao.PessimisticLockingFailureException;
+import com.utng.pagosservicios.seguridad.ValidadorSesion;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -98,10 +99,17 @@ public class ManejadorGlobalExcepciones {
     /** Llega desde el filtro de seguridad a traves de DelegadorErroresSeguridad. */
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ProblemDetail> noAutenticado(AuthenticationException ex, HttpServletRequest solicitud) {
+        // El token era valido pero su sesion se cerro (otro dispositivo, cierre o inactividad).
+        boolean sesionTerminada = ex.getMessage() != null
+                && ex.getMessage().contains(ValidadorSesion.SESION_FINALIZADA);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
-                .body(problema(HttpStatus.UNAUTHORIZED, CodigoError.NO_AUTENTICADO,
-                        "Se requiere un token válido y vigente en el encabezado Authorization.", solicitud));
+                .body(sesionTerminada
+                        ? problema(HttpStatus.UNAUTHORIZED, CodigoError.SESION_FINALIZADA,
+                                "Tu sesión terminó: la cerraste, expiró por inactividad o se inició sesión "
+                                        + "en otro dispositivo.", solicitud)
+                        : problema(HttpStatus.UNAUTHORIZED, CodigoError.NO_AUTENTICADO,
+                                "Se requiere un token válido y vigente en el encabezado Authorization.", solicitud));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -143,13 +151,15 @@ public class ManejadorGlobalExcepciones {
     static HttpStatus estadoHttp(CodigoError codigo) {
         return switch (codigo) {
             case SOLICITUD_INVALIDA, CLAVE_IDEMPOTENCIA_INVALIDA -> HttpStatus.BAD_REQUEST;
-            case NO_AUTENTICADO, CREDENCIALES_INVALIDAS -> HttpStatus.UNAUTHORIZED;
+            case NO_AUTENTICADO, CREDENCIALES_INVALIDAS, CODIGO_2FA_INVALIDO, DESAFIO_INVALIDO, SESION_FINALIZADA ->
+                    HttpStatus.UNAUTHORIZED;
             case ACCESO_DENEGADO, CLIENTE_NO_HABILITADO, CUENTA_NO_AUTORIZADA -> HttpStatus.FORBIDDEN;
             case RECURSO_NO_ENCONTRADO, PAGO_NO_ENCONTRADO -> HttpStatus.NOT_FOUND;
             case METODO_NO_PERMITIDO -> HttpStatus.METHOD_NOT_ALLOWED;
             case TIPO_CONTENIDO_NO_SOPORTADO -> HttpStatus.UNSUPPORTED_MEDIA_TYPE;
             case CLAVE_IDEMPOTENCIA_REUTILIZADA, PAGO_EN_PROCESO, OPERACION_CONCURRENTE, PAGO_DUPLICADO,
-                 USUARIO_YA_REGISTRADO -> HttpStatus.CONFLICT;
+                 USUARIO_YA_REGISTRADO, SESION_ACTIVA ->
+                    HttpStatus.CONFLICT;
             case CUENTA_INACTIVA, SALDO_INSUFICIENTE, LIMITE_DIARIO_EXCEDIDO, PRODUCTO_NO_DISPONIBLE,
                  MONTO_NO_PERMITIDO, REFERENCIA_INVALIDA, PAGO_RECHAZADO -> HttpStatus.UNPROCESSABLE_CONTENT;
             case PROVEEDOR_NO_DISPONIBLE -> HttpStatus.SERVICE_UNAVAILABLE;

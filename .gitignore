@@ -37,3 +37,5 @@ Thumbs.db
 ### Logs ###
 *.log
 logs/
+_cambios_2fa/
+_respaldo_2fa/

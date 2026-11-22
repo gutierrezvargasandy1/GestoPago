@@ -1,5 +1,8 @@
 package com.utng.pagosservicios.integracion;
 
+import com.utng.pagosservicios.dominio.cliente.Plataforma;
+import com.utng.pagosservicios.repositorio.RepositorioSesiones;
+import com.utng.pagosservicios.servicio.SesionService;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
@@ -72,6 +75,8 @@ public abstract class IntegracionBase {
     @Autowired
     protected EmisorTokens emisorTokens;
     @Autowired
+    protected SesionService sesiones;
+    @Autowired
     protected ConciliacionJob conciliacion;
     @Autowired
     protected CircuitBreakerRegistry circuitos;
@@ -93,7 +98,14 @@ public abstract class IntegracionBase {
     }
 
     protected String tokenDe(String usuario) {
-        return emisorTokens.emitir(usuario, true).valor();
+        return tokenDe(usuario, true);
+    }
+
+    /** Abre una sesion real (tabla sesion) y emite su token, como hace POST /auth/2fa. */
+    protected String tokenDe(String usuario, boolean puedePagar) {
+        Long clienteId = jdbc.queryForObject("SELECT id FROM cliente WHERE usuario = ?", Long.class, usuario);
+        RepositorioSesiones.SesionAbierta sesion = sesiones.abrir(clienteId, Plataforma.WEB, true);
+        return emisorTokens.emitirAcceso(usuario, puedePagar, sesion.sid(), sesion.expiraEn()).valor();
     }
 
     /** Crea un cliente con su cuenta y devuelve un token valido para el. */

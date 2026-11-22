@@ -12,7 +12,8 @@ import java.math.BigDecimal;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ProductoResponse(String idServicio, String idProducto, String nombre, String modalidad,
                                String tipoMonto, String montoFijo, String montoMinimo, String montoMaximo,
-                               String multiplo, String comision, Integer longitudReferencia, String leyenda) {
+                               String multiplo, String comision, Integer longitudReferencia, String leyenda,
+                               boolean disponibleCompra) {
 
     public static ProductoResponse de(Producto producto) {
         return new ProductoResponse(
@@ -27,7 +28,8 @@ public record ProductoResponse(String idServicio, String idProducto, String nomb
                 texto(producto.getMultiplo()),
                 texto(producto.getComision()),
                 producto.getLongitudReferencia(),
-                producto.getLeyenda());
+                producto.getLeyenda(),
+                producto.vendibleEnLinea());
     }
 
     private static String texto(BigDecimal valor) {

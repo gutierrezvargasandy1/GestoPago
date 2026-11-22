@@ -2,8 +2,10 @@ package com.utng.pagosservicios.web;
 
 import com.utng.pagosservicios.dominio.pago.EstadoTransaccion;
 import com.utng.pagosservicios.servicio.ClaveIdempotencia;
+import com.utng.pagosservicios.servicio.HistorialService;
 import com.utng.pagosservicios.servicio.PagoService;
 import com.utng.pagosservicios.servicio.ResultadoPago;
+import com.utng.pagosservicios.web.dto.CompraResponse;
 import com.utng.pagosservicios.web.dto.PagoResponse;
 import com.utng.pagosservicios.web.dto.SolicitudPagoRequest;
 import jakarta.validation.Valid;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.util.List;
 
 /**
  * Capa delgada: recibe, delega y traduce a HTTP. La logica vive en PagoService.
@@ -40,9 +43,11 @@ public class PagoController {
     static final String ENCABEZADO_REPETIDA = "Idempotent-Replayed";
 
     private final PagoService pagos;
+    private final HistorialService historial;
 
-    public PagoController(PagoService pagos) {
+    public PagoController(PagoService pagos, HistorialService historial) {
         this.pagos = pagos;
+        this.historial = historial;
     }
 
     @PostMapping
@@ -59,6 +64,12 @@ public class PagoController {
             respuesta.header(ENCABEZADO_REPETIDA, "true");
         }
         return respuesta.body(PagoResponse.de(resultado));
+    }
+
+    /** Compras exitosas del cliente (solo CONFIRMADA), la mas reciente primero. */
+    @GetMapping("/historial")
+    public List<CompraResponse> historial(Authentication autenticacion) {
+        return historial.compras(autenticacion.getName()).stream().map(CompraResponse::de).toList();
     }
 
     @GetMapping("/{id}")

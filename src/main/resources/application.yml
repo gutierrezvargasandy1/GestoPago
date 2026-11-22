@@ -160,7 +160,17 @@ seguridad:
   jwt:
     secreto: ${JWT_SECRETO}
     emisor: pagos-servicios
-    vigencia: PT15M
+    # Vida del desafio entre la contrasena y el codigo de doble factor.
+    vigencia: PT5M
+  sesion:
+    # Una sola sesion por cliente (web o movil). Se cierra sola tras 30 min sin
+    # peticiones y, en cualquier caso, a las 8 h.
+    duracion-maxima: ${SESION_DURACION_MAXIMA:PT8H}
+    inactividad: ${SESION_INACTIVIDAD:PT30M}
+  cors:
+    # Origenes del front web separados por coma. localhost en cualquier puerto
+    # para desarrollo; agrega la URL donde publiques la app web.
+    origenes: ${CORS_ORIGENES:http://localhost:[*],http://127.0.0.1:[*]}
 
 resilience4j:
   circuitbreaker:
