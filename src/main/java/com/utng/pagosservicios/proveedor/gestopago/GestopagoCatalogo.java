@@ -14,6 +14,7 @@ import org.slf4j.MDC;
 import org.w3c.dom.Element;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -47,6 +48,7 @@ public class GestopagoCatalogo implements CatalogoProveedor {
     /** El catalogo completo puede ocupar varios cientos de KB. */
     static final int MAX_BYTES_CATALOGO = 8 * 1024 * 1024;
     private static final int INTENTOS_MAXIMOS = 2;
+    private static final int MAX_RESPUESTA_FALLIDA = 600;
 
     private final ConectorGestopago conector;
     private final GestopagoProperties propiedades;
@@ -93,8 +95,17 @@ public class GestopagoCatalogo implements CatalogoProveedor {
                 return CatalogoObtenido.fallido("HTTP_" + respuesta.status());
             }
             CatalogoObtenido catalogo = interpretar(respuesta);
-            registrar(intento, respuesta.status(), catalogo.exitoso() ? "01" : null,
-                    catalogo.exitoso() ? catalogo.productos().size() + " productos" : catalogo.detalle(),
+            String resumen;
+            if (catalogo.exitoso()) {
+                resumen = catalogo.productos().size() + " productos";
+            } else {
+                // Se guarda lo que contesto el proveedor (su texto explica el codigo de rechazo).
+                String cuerpo = GestopagoClient.textoLibre(
+                        new String(respuesta.cuerpo(), StandardCharsets.UTF_8), MAX_RESPUESTA_FALLIDA);
+                resumen = cuerpo == null ? catalogo.detalle() : catalogo.detalle() + " | " + cuerpo;
+                log.warn("Gestopago no entrego el catalogo: {}", resumen);
+            }
+            registrar(intento, respuesta.status(), catalogo.exitoso() ? "01" : null, resumen,
                     null, inicio, iniciado);
             return catalogo;
         }
