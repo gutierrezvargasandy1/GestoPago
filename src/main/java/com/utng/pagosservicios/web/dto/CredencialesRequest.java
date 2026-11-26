@@ -1,10 +1,16 @@
 package com.utng.pagosservicios.web.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Paso 1 del inicio de sesion. Las apps mandan "correo"; "usuario" se sigue
+ * aceptando para las cuentas creadas antes de que el usuario fuera el correo.
+ */
 public record CredencialesRequest(
-        @NotBlank(message = "El usuario es obligatorio") @Size(max = 100, message = "Usuario demasiado largo")
+        @JsonAlias("correo")
+        @NotBlank(message = "El correo es obligatorio") @Size(max = 100, message = "Correo demasiado largo")
         String usuario,
         @NotBlank(message = "La contraseña es obligatoria") @Size(max = 200, message = "Contraseña demasiado larga")
         String password) {

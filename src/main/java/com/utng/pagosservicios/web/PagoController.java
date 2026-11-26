@@ -19,8 +19,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -64,6 +67,25 @@ public class PagoController {
             respuesta.header(ENCABEZADO_REPETIDA, "true");
         }
         return respuesta.body(PagoResponse.de(resultado));
+    }
+
+    /**
+     * Todas las compras del cliente, en cualquier estado, la mas reciente primero.
+     *
+     * @param estado TODAS, EXITOSAS, PENDIENTES o RECHAZADAS
+     * @param texto  busca en producto, servicio, referencia, folio, autorizacion y numero de operacion
+     * @param desde  fecha inicial (yyyy-MM-dd), incluida
+     * @param hasta  fecha final (yyyy-MM-dd), incluida
+     */
+    @GetMapping
+    public List<CompraResponse> buscar(
+            @RequestParam(name = "estado", defaultValue = "TODAS") HistorialService.Grupo estado,
+            @RequestParam(name = "texto", required = false) String texto,
+            @RequestParam(name = "desde", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(name = "hasta", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            Authentication autenticacion) {
+        return historial.buscar(autenticacion.getName(), estado, texto, desde, hasta).stream()
+                .map(CompraResponse::de).toList();
     }
 
     /** Compras exitosas del cliente (solo CONFIRMADA), la mas reciente primero. */

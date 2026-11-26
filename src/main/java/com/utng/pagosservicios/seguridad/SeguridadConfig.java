@@ -51,6 +51,7 @@ public class SeguridadConfig {
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**")
                                 .permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/error").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/terminos").permitAll()
                         .requestMatchers("/api/v1/pagos", "/api/v1/pagos/**")
                                 .hasAuthority("SCOPE_" + EmisorTokens.SCOPE_PAGOS)
                         .anyRequest().authenticated())
@@ -90,7 +91,7 @@ public class SeguridadConfig {
     public CorsConfigurationSource corsConfigurationSource(SeguridadProperties propiedades) {
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOriginPatterns(propiedades.cors().origenes());
-        cors.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
         cors.setExposedHeaders(List.of("X-Request-Id", "Idempotent-Replayed", "Location"));
         cors.setMaxAge(Duration.ofHours(1));

@@ -32,6 +32,7 @@ public enum CodigoError {
     PRODUCTO_NO_DISPONIBLE("Producto no disponible"),
     MONTO_NO_PERMITIDO("Monto no permitido"),
     REFERENCIA_INVALIDA("Referencia inválida"),
+    CONTRASENA_INCORRECTA("Contraseña actual incorrecta"),
     PAGO_RECHAZADO("Pago rechazado por el proveedor"),
     PAGO_DUPLICADO("Pago duplicado en el proveedor"),
     PROVEEDOR_NO_DISPONIBLE("Proveedor no disponible"),

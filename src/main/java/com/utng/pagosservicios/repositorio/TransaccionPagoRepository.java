@@ -28,6 +28,21 @@ public interface TransaccionPagoRepository extends JpaRepository<TransaccionPago
     List<TransaccionPago> findTop100ByClienteIdAndEstadoOrderByResueltoEnDesc(Long clienteId,
                                                                               EstadoTransaccion estado);
 
+    /** Busqueda de compras del cliente en cualquier estado, la mas reciente primero. */
+    @Query("""
+            SELECT t FROM TransaccionPago t
+            WHERE t.clienteId = :clienteId
+              AND t.estado IN :estados
+              AND t.creadoEn >= :desde
+              AND t.creadoEn < :hasta
+            ORDER BY t.creadoEn DESC
+            """)
+    List<TransaccionPago> buscarDelCliente(@Param("clienteId") Long clienteId,
+                                           @Param("estados") Collection<EstadoTransaccion> estados,
+                                           @Param("desde") Instant desde,
+                                           @Param("hasta") Instant hasta,
+                                           Pageable pagina);
+
     /**
      * Monto comprometido hoy por la cuenta: todo lo que no termino reversado
      * (confirmado o aun pendiente). Devuelve null si no hay operaciones.

@@ -53,6 +53,13 @@ public class Cliente {
     @Column(name = "totp_bloqueado_hasta")
     private Instant totpBloqueadoHasta;
 
+    /** Version de los terminos y condiciones que acepto al registrarse. */
+    @Column(name = "terminos_version", length = 20)
+    private String terminosVersion;
+
+    @Column(name = "terminos_aceptados_en")
+    private Instant terminosAceptadosEn;
+
     protected Cliente() {
         // requerido por JPA
     }
@@ -98,6 +105,24 @@ public class Cliente {
         totpBloqueadoHasta = null;
     }
 
+    public void aceptarTerminos(String version, Instant momento) {
+        this.terminosVersion = version;
+        this.terminosAceptadosEn = momento;
+    }
+
+    public void cambiarNombre(String nuevoNombre) {
+        this.nombre = nuevoNombre;
+    }
+
+    /** El usuario (correo) es el subject del JWT: quien lo cambia debe volver a iniciar sesion. */
+    public void cambiarUsuario(String nuevoUsuario) {
+        this.usuario = nuevoUsuario;
+    }
+
+    public void cambiarPasswordHash(String nuevoHash) {
+        this.passwordHash = nuevoHash;
+    }
+
     public Long getId() {
         return id;
     }
@@ -136,5 +161,13 @@ public class Cliente {
 
     public Long getTotpUltimoPaso() {
         return totpUltimoPaso;
+    }
+
+    public String getTerminosVersion() {
+        return terminosVersion;
+    }
+
+    public Instant getTerminosAceptadosEn() {
+        return terminosAceptadosEn;
     }
 }

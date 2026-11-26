@@ -7,6 +7,7 @@ import com.utng.pagosservicios.repositorio.CuentaRepository;
 import com.utng.pagosservicios.servicio.excepcion.CodigoError;
 import com.utng.pagosservicios.servicio.excepcion.ConflictoException;
 import com.utng.pagosservicios.servicio.excepcion.SolicitudInvalidaException;
+import com.utng.pagosservicios.util.Correos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.time.Instant;
 
 /**
  * Alta de clientes: crea el cliente (contrasena con BCrypt) y su cuenta en una
@@ -54,8 +56,13 @@ public class RegistroService {
         this.limiteDiario = limiteDiario;
     }
 
+    /**
+     * @param correo el usuario del cliente; se guarda sin espacios y en minusculas
+     * @param versionTerminos version de los terminos y condiciones que acepto
+     */
     @Transactional
-    public ClienteRegistrado registrar(String usuario, String password, String nombre) {
+    public ClienteRegistrado registrar(String correo, String password, String nombre, String versionTerminos) {
+        String usuario = Correos.normalizar(correo);
         if (password.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES_PASSWORD) {
             throw new SolicitudInvalidaException(CodigoError.SOLICITUD_INVALIDA,
                     "La contraseña es demasiado larga (máximo 72 bytes).");
@@ -67,7 +74,9 @@ public class RegistroService {
         try {
             // saveAndFlush: si otra peticion registro el mismo usuario al mismo tiempo,
             // el UNIQUE de la base salta aqui y no al final de la transaccion.
-            cliente = clientes.saveAndFlush(new Cliente(usuario, codificador.encode(password), nombre.strip()));
+            Cliente nuevo = new Cliente(usuario, codificador.encode(password), nombre.strip());
+            nuevo.aceptarTerminos(versionTerminos, Instant.now());
+            cliente = clientes.saveAndFlush(nuevo);
         } catch (DataIntegrityViolationException e) {
             throw usuarioOcupado();
         }
@@ -88,6 +97,6 @@ public class RegistroService {
     }
 
     private static ConflictoException usuarioOcupado() {
-        return new ConflictoException(CodigoError.USUARIO_YA_REGISTRADO, "El usuario ya está registrado.");
+        return new ConflictoException(CodigoError.USUARIO_YA_REGISTRADO, "Ese correo ya está registrado.");
     }
 }

@@ -11,6 +11,7 @@ import com.utng.pagosservicios.seguridad.VerificadorDesafios;
 import com.utng.pagosservicios.servicio.excepcion.AutenticacionFallidaException;
 import com.utng.pagosservicios.servicio.excepcion.CodigoError;
 import com.utng.pagosservicios.servicio.excepcion.DosPasosException;
+import com.utng.pagosservicios.util.Correos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -72,7 +73,9 @@ public class AutenticacionService {
     }
 
     @Transactional
-    public PrimerPaso iniciar(String usuario, String password) {
+    public PrimerPaso iniciar(String correo, String password) {
+        // El correo se compara sin espacios y en minusculas (asi se guarda al registrarse).
+        String usuario = Correos.normalizar(correo);
         Optional<Cliente> encontrado = clientes.findByUsuario(usuario);
         // Siempre se ejecuta BCrypt, exista o no el usuario: si solo se calculara
         // cuando existe, el tiempo de respuesta revelaria que usuarios son validos.

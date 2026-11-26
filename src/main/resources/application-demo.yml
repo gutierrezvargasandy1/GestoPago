@@ -1,0 +1,31 @@
+# Perfil "demo" (SPRING_PROFILES_ACTIVE=demo).
+#
+# Para cuando GestoPago no esta disponible: las compras las resuelve un proveedor
+# de demostracion dentro del mismo backend (no hace falta otro servicio) y el
+# catalogo es el de ejemplo de la base de datos. NO se hace ninguna recarga ni
+# pago real; la app muestra un aviso de "Modo demostracion".
+#
+# El resultado de una compra depende de los ultimos 4 digitos del telefono o de
+# la referencia: 0000 rechazada, 0006 duplicada, 5000 error de comunicacion,
+# 9999 pendiente que se confirma, 8282 pendiente que se devuelve,
+# 7777 pendiente que pasa a revision manual, cualquier otra exitosa.
+pagos:
+  demostracion:
+    activa: true
+  catalogo:
+    permitir-ejemplo: true
+    # No se consulta el catalogo de GestoPago.
+    sincronizacion-habilitada: false
+  conciliacion:
+    # Tiempos cortos para que en la demostracion se vea como una compra
+    # pendiente se resuelve sola en menos de un minuto.
+    intervalo: PT15S
+    margen-inicial: PT10S
+    espera-base: PT10S
+    max-intentos: 3
+
+gestopago:
+  timeout:
+    # La conciliacion exige margen-inicial > conexion + lectura.
+    conexion: 2s
+    lectura: 5s

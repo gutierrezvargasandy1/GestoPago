@@ -3,6 +3,7 @@ package com.utng.pagosservicios.web;
 import com.utng.pagosservicios.seguridad.EmisorTokens;
 import com.utng.pagosservicios.servicio.AutenticacionService;
 import com.utng.pagosservicios.servicio.RegistroService;
+import com.utng.pagosservicios.servicio.TerminosService;
 import com.utng.pagosservicios.web.dto.CredencialesRequest;
 import com.utng.pagosservicios.web.dto.PrimerPasoResponse;
 import com.utng.pagosservicios.web.dto.RegistroRequest;
@@ -36,11 +37,11 @@ public class AutenticacionController {
         this.registro = registro;
     }
 
-    /** Alta de cliente con su cuenta. Despues se inicia sesion con POST /token. */
+    /** Alta de cliente (correo + aceptacion de terminos) con su cuenta. Despues se inicia sesion con POST /token. */
     @PostMapping("/registro")
     public ResponseEntity<RegistroResponse> registrar(@Valid @RequestBody RegistroRequest solicitud) {
         RegistroService.ClienteRegistrado registrado =
-                registro.registrar(solicitud.usuario(), solicitud.password(), solicitud.nombre());
+                registro.registrar(solicitud.correo(), solicitud.password(), solicitud.nombre(), TerminosService.VERSION);
         return ResponseEntity.status(HttpStatus.CREATED).body(RegistroResponse.de(registrado));
     }
 
